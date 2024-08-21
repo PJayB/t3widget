@@ -1308,19 +1308,38 @@ void edit_window_t::redo() {
 }
 
 void edit_window_t::cut_copy(bool cut) {
-  if (text->get_selection_mode() != selection_mode_t::NONE) {
-    if (text->selection_empty()) {
-      reset_selection();
-      return;
+  text_coordinate_t start;
+  text_coordinate_t end;
+  if (text->get_selection_mode() == selection_mode_t::NONE || text->selection_empty()) {
+    start = text->get_cursor();
+    end = text->get_cursor();
+		start.pos = 0;
+	  if (end.line + 1 >= text->size()) {
+	    end.pos = text->get_line_size(end.line);
+	  } else {
+	    end.line = end.line + 1;
+	    end.pos = 0;
+	  }
+  } else {
+    if (text->get_selection_start() < text->get_selection_end()) {
+      start = text->get_selection_start();
+      end = text->get_selection_end();
+    } else {
+      start = text->get_selection_end();
+      end = text->get_selection_start();
     }
+  }
+	
+  set_clipboard(text->convert_block(start, end));
 
-    set_clipboard(text->convert_block(text->get_selection_start(), text->get_selection_end()));
-
-    if (cut) {
-      delete_selection();
-    } else if (text->get_selection_mode() == selection_mode_t::MARK) {
-      text->set_selection_mode(selection_mode_t::SHIFT);
-    }
+  if (cut) {
+		if (text->selection_empty()) {
+			delete_line();
+    } else {
+			delete_selection();
+		}
+  } else if (text->get_selection_mode() == selection_mode_t::MARK) {
+    text->set_selection_mode(selection_mode_t::SHIFT);
   }
 }
 
