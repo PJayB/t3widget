@@ -447,6 +447,14 @@ void cleanup() {
   t3_term_deinit();
 }
 
+// this is a 'wake' switch that we wait on after suspend
+volatile bool sys_suspended = false;
+void continue_callback(int) {
+	if (sys_suspended) {
+		sys_suspended = false;
+	}
+}
+
 void suspend() {
   // FIXME: check return values!
   release_selections();
@@ -455,7 +463,25 @@ void suspend() {
   t3_term_restore();
   printf("%s has been stopped. You can return to %s by entering 'fg'.\n",
          init_params->program_name.c_str(), init_params->program_name.c_str());
+
+	// set the 'paused' state
+	sys_suspended = true;
+	
+	// install a signal handler for SIGCONT that will wake us up
+	struct sigaction new_act {}, old_act {};
+	new_act.sa_handler = continue_callback;
+	sigaction(SIGCONT, &new_act, &old_act);
+	
+	// suspend this process (asynchronous)
   kill(getpid(), SIGSTOP);
+	
+	// wait for the green light to resume
+	while (sys_suspended) {}
+	
+	// restore the old signal handler
+	sigaction(SIGCONT, &old_act, nullptr);
+
+	// reinitialize state
   t3_term_init(-1, nullptr);
   terminal_specific_setup();
   reinit_keys();
