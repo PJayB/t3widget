@@ -304,7 +304,6 @@ complex_error_t init(const init_parameters_t *params) {
     return result;
   }
 
-  init_log();
   text_line_t::init();
 
   if (init_params == nullptr) {
